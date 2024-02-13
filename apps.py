@@ -2,6 +2,7 @@ import io
 
 import duckdb
 import pandas as pd
+import ast
 import streamlit as st
 
 con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
@@ -35,10 +36,12 @@ with st.sidebar:
 st.header("Enter your code : ")
 query = st.text_area(label="Votre code ici", key="user_input")
 
+
+if query:
+    result = con.execute(query).df()
+    st.dataframe(result)
+ 
 """
-#if query:
-#    result = duckdb.query(query).df()
-#    st.dataframe(result)
 #
 #    if len(result.columns) != len(solution_df.columns):
 #        # replace with try = result[solution.columns]
@@ -53,19 +56,25 @@ query = st.text_area(label="Votre code ici", key="user_input")
     if n_lines_difference != 0:
         st.write(f"reslut has {n_lines_difference} lines diffrence with the solution")
 
-
+"""
 tab2, tab3 = st.tabs(["Tables", "Solutions"])
 
 
 with tab2:
-    st.write("table: beverages")
-    st.dataframe(beverages)
-    st.write("table: food_items")
-    st.write(food_items)
-    st.write("excepted")
-    st.write(solution_df)
+    exercise_tables = ast.literal_eval(exercise.loc[0, "tables"])
+    for table in exercise_tables:
+        st.write(f"table: {table}")
+        df_table = con.execute(f"SELECT * FROM {table}").df()
+        st.dataframe(df_table)
+        #print(table)
+#    st.write("table: food_items")
+#    st.write(food_items)
+#    st.write("excepted")
+#    st.write(solution_df)
 
 with tab3:
-    st.write(ANSWER_STR)
+    exercise_name = exercise.loc[0, "exercise_name"]
+    with open(f"answers/{exercise_name}.sql", "r") as f:
+        answer = f.read()
+    st.write(answer) 
 
-"""

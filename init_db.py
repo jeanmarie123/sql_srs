@@ -13,9 +13,10 @@ con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = F
 #.........................................................................
 data = {
     "theme": ["cross_joins", "window_functions"],
-    "exercise_name": ["beverages", "simple_window"],
+    "exercise_name": ["beverages_and_food", "simple_window"],
     "tables": [["beverages", "food_items"], "simple_window"],
-    "last_reviewed": ["1970-01-01", "1970-01-01"]
+    "last_reviewed": ["1970-01-01", "1970-01-01"],
+    #"answer": ["SELECT * FROM beverages CROSS JOIN food_items", ""]
 }
 memory_state_df = pd.DataFrame(data)
 con.execute("CREATE TABLE IF NOT EXISTS memory_state_df AS SELECT * FROM memory_state_df")
