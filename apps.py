@@ -1,9 +1,19 @@
-import io
+# pylint: disable=missing-mule-docstring
 
+import os
+import logging
 import duckdb
-import pandas as pd
-import ast
 import streamlit as st
+
+if "data" not in os.listdir():
+    print("creating floder data")
+    logging.error(os.listdir())
+    logging.error("creating floder data")
+    os.mkdir("data")
+
+if "exercises_sql_table.duckdb" not in os.listdir("data"):
+    exec(open("init_db.py").read())
+    #subprocess.run(["python", "init_db.py"])
 
 con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
 
@@ -30,7 +40,7 @@ with st.sidebar:
     )
     st.write("You selected:", theme)
 
-    exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df()
+    exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df().sort_values("last_reviewed").reset_index()
     st.write(exercise)
     
     # Cette partie permet d'affichier la solution de l'exercice
@@ -38,7 +48,7 @@ with st.sidebar:
     with open(f"answers/{exercise_name}.sql", "r") as f:
         answer = f.read()
 
-    solution_df = con.execute(answer).df()
+    solution_df = con.execute(answer).df() 
 
 
 st.header("Enter your code : ")
@@ -69,7 +79,7 @@ tab2, tab3 = st.tabs(["Tables", "Solutions"])
 
 
 with tab2:
-    exercise_tables = ast.literal_eval(exercise.loc[0, "tables"])
+    exercise_tables = exercise.loc[0, "tables"]
     for table in exercise_tables:
         st.write(f"table: {table}")
         df_table = con.execute(f"SELECT * FROM {table}").df()
