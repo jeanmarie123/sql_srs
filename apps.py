@@ -18,29 +18,32 @@ if "exercises_sql_table.duckdb" not in os.listdir("data"):
 con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
 
 
-
-
-#ANSWER_STR = """
-#SELECT * FROM beverages
-#CROSS JOIN food_items
-#"""
-# solution_df = duckdb.sql(ANSWER_STR).df()
-
-
 """
     Cette partie perme de créer un selecteur et permettrait à l'utilisateur de choisir un theme.
 
 """
 with st.sidebar:
+    available_themes_df = con.execute("SELECT DISTINCT theme FROM memory_state_df").df()
     theme = st.selectbox(
         "What would you like review?",
-        ("cross_joins", "Groupby", "window_functions"),
+        available_themes_df["theme"].unique(),
         index=None,
         placeholder="Select a them...",
     )
-    st.write("You selected:", theme)
+    if theme:
+        st.write("You selected:", theme)
+        select_exercise_query = f"SELECT * FROM memory_state_df WHERE theme = '{theme}'"
+    else:
+        select_exercise_query = f"SELECT * FROM memory_state_df"
 
-    exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df().sort_values("last_reviewed").reset_index()
+    
+    exercise = (
+        con.execute(select_exercise_query)
+        .df()
+        .sort_values("last_reviewed")
+        .reset_index(drop = True)
+    )
+
     st.write(exercise)
     
     # Cette partie permet d'affichier la solution de l'exercice
@@ -58,12 +61,6 @@ if query:
     result = con.execute(query).df()
     st.dataframe(result)
  
-
-#
-#    if len(result.columns) != len(solution_df.columns):
-#        # replace with try = result[solution.columns]
-#        st.write("Some columns have missing")
-
     try:
         result = result[solution_df.columns]
         st.dataframe(result.compare(solution_df))
@@ -84,11 +81,6 @@ with tab2:
         st.write(f"table: {table}")
         df_table = con.execute(f"SELECT * FROM {table}").df()
         st.dataframe(df_table)
-        #print(table)
-#    st.write("table: food_items")
-#    st.write(food_items)
-#    st.write("excepted")
-#    st.write(solution_df)
 
 with tab3:
     st.write(answer) 
