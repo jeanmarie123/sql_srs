@@ -4,6 +4,17 @@ import os
 import logging
 import duckdb
 import streamlit as st
+from datetime import date, timedelta, datetime
+
+if "data" not in os.listdir():
+    print("creating floder data")
+    logging.error(os.listdir())
+    logging.error("creating floder data")
+    os.mkdir("data")
+
+if "exercises_sql_table.duckdb" not in os.listdir("data"):
+    exec(open("init_db.py").read())
+    #subprocess.run(["python", "init_db.py"])
 
 if "data" not in os.listdir():
     print("creating floder data")
@@ -18,13 +29,30 @@ if "exercises_sql_table.duckdb" not in os.listdir("data"):
 con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
 
 
+def check_users_solution(con, solution_df, user_query):
+    """
+    checks that user SQL query is correct by:
+    1: checking the columns
+    2: checking the values
+    :param user_query: a string containing the query inserted by the user
+    :return:
+    """
 
+    result = con.execute(user_query).df()
+    st.dataframe(result)
+    try:
+        result = result[solution_df.columns]
+        st.dataframe(result.compare(solution_df))
+        if result.compare(solution_df).shape == (0, 0):
+            st.write("Correct !")
+    except KeyError as e:
+        st.write("Some columns have missing")
 
-#ANSWER_STR = """
-#SELECT * FROM beverages
-#CROSS JOIN food_items
-#"""
-# solution_df = duckdb.sql(ANSWER_STR).df()
+    n_lines_difference = result.shape[0] - solution_df.shape[0]
+    if n_lines_difference != 0:
+        st.write(
+            f"reslut has {n_lines_difference} lines diffrence with the solution"
+        )
 
 
 """
@@ -32,15 +60,31 @@ con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = F
 
 """
 with st.sidebar:
+    available_themes_df = con.execute("SELECT DISTINCT theme FROM memory_state_df").df()
     theme = st.selectbox(
         "What would you like review?",
-        ("cross_joins", "Groupby", "window_functions"),
+        available_themes_df["theme"].unique(),
         index=None,
         placeholder="Select a them...",
     )
-    st.write("You selected:", theme)
+    if theme:
+        st.write("You selected:", theme)
+        select_exercise_query = f"SELECT * FROM memory_state_df WHERE theme = '{theme}'"
+    else:
+        select_exercise_query = f"SELECT * FROM memory_state_df"
+
+    
+    exercise = (
+        con.execute(select_exercise_query)
+        .df()
+        .sort_values("last_reviewed")
+        .reset_index(drop = True)
+    )
+
+
 
     exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df().sort_values("last_reviewed").reset_index()
+
     st.write(exercise)
     
     # Cette partie permet d'affichier la solution de l'exercice
@@ -54,25 +98,21 @@ with st.sidebar:
 st.header("Enter your code : ")
 query = st.text_area(label="Votre code ici", key="user_input")
 
+
 if query:
-    result = con.execute(query).df()
-    st.dataframe(result)
- 
+    check_users_solution(con, solution_df, query)
 
-#
-#    if len(result.columns) != len(solution_df.columns):
-#        # replace with try = result[solution.columns]
-#        st.write("Some columns have missing")
+for n_days in [2, 7, 21]:
+    if st.button(f"revoir dans {n_days} jours"):
+        next_review = date.today() + timedelta(days = n_days)
+        con.execute(f"UPDATE memory_state_df SET last_reviewed = '{next_review}' WHERE exercise_name = '{exercise_name}'")
+        st.rerun()
 
-    try:
-        result = result[solution_df.columns]
-        st.dataframe(result.compare(solution_df))
-    except KeyError as e:
-        st.write("Some columns have missing")
+if st.button('Reset'):
+    con.execute(f"UPDATE memory_state_df SET last_reviewed = '1970-01-01'")
+    st.rerun()
 
-    n_lines_difference = result.shape[0] - solution_df.shape[0]
-    if n_lines_difference != 0:
-        st.write(f"reslut has {n_lines_difference} lines diffrence with the solution")
+
 
 
 tab2, tab3 = st.tabs(["Tables", "Solutions"])
@@ -84,12 +124,8 @@ with tab2:
         st.write(f"table: {table}")
         df_table = con.execute(f"SELECT * FROM {table}").df()
         st.dataframe(df_table)
-        #print(table)
-#    st.write("table: food_items")
-#    st.write(food_items)
-#    st.write("excepted")
-#    st.write(solution_df)
 
 with tab3:
     st.write(answer) 
 
+con.close() 
