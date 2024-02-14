@@ -16,6 +16,16 @@ if "exercises_sql_table.duckdb" not in os.listdir("data"):
     exec(open("init_db.py").read())
     #subprocess.run(["python", "init_db.py"])
 
+if "data" not in os.listdir():
+    print("creating floder data")
+    logging.error(os.listdir())
+    logging.error("creating floder data")
+    os.mkdir("data")
+
+if "exercises_sql_table.duckdb" not in os.listdir("data"):
+    exec(open("init_db.py").read())
+    #subprocess.run(["python", "init_db.py"])
+
 con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
 
 
@@ -70,6 +80,10 @@ with st.sidebar:
         .sort_values("last_reviewed")
         .reset_index(drop = True)
     )
+
+
+
+    exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df().sort_values("last_reviewed").reset_index()
 
     st.write(exercise)
     
