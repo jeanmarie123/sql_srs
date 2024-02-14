@@ -1,52 +1,69 @@
-import io
+# pylint: disable=missing-mule-docstring
 
+import os
+import logging
 import duckdb
-import pandas as pd
 import streamlit as st
 
-CSV = """
-beverage,price
-orange juice,2.5
-Expresso,2
-Tea,3  
+if "data" not in os.listdir():
+    print("creating floder data")
+    logging.error(os.listdir())
+    logging.error("creating floder data")
+    os.mkdir("data")
+
+if "exercises_sql_table.duckdb" not in os.listdir("data"):
+    exec(open("init_db.py").read())
+    #subprocess.run(["python", "init_db.py"])
+
+con = duckdb.connect(database = "data/exercises_sql_table.duckdb", read_only = False)
+
+
+
+
+#ANSWER_STR = """
+#SELECT * FROM beverages
+#CROSS JOIN food_items
+#"""
+# solution_df = duckdb.sql(ANSWER_STR).df()
+
+
 """
-beverages = pd.read_csv(io.StringIO(CSV))
+    Cette partie perme de créer un selecteur et permettrait à l'utilisateur de choisir un theme.
 
-CSV2 = """
-food_item,food_price
-cookie juice,2.5
-chocolatine,2
-muffin,3
 """
-food_items = pd.read_csv(io.StringIO(CSV2))
-
-ANSWER_STR = """
-SELECT * FROM beverages
-CROSS JOIN food_items
-"""
-solution_df = duckdb.sql(ANSWER_STR).df()
-
-
-# Ici on crée un selecteur qui va permettre à l utilisateur de faire son choix
 with st.sidebar:
-    option = st.selectbox(
+    theme = st.selectbox(
         "What would you like review?",
-        ("Joins", "Group by", "Windows function"),
+        ("cross_joins", "Groupby", "window_functions"),
         index=None,
         placeholder="Select a them...",
     )
-    st.write("You selected:", option)
+    st.write("You selected:", theme)
+
+    exercise = con.execute(f"SELECT * FROM memory_state_df WHERE theme = '{theme}' ").df().sort_values("last_reviewed").reset_index()
+    st.write(exercise)
+    
+    # Cette partie permet d'affichier la solution de l'exercice
+    exercise_name = exercise.loc[0, "exercise_name"]
+    with open(f"answers/{exercise_name}.sql", "r") as f:
+        answer = f.read()
+
+    solution_df = con.execute(answer).df() 
 
 
 st.header("Enter your code : ")
 query = st.text_area(label="Votre code ici", key="user_input")
-if query:
-    result = duckdb.query(query).df()
-    st.dataframe(result)
 
-    if len(result.columns) != len(solution_df.columns):
-        # replace with try = result[solution.columns]
-        st.write("Some columns have missing")
+if query:
+    result = con.execute(query).df()
+    st.dataframe(result)
+ 
+
+#
+#    if len(result.columns) != len(solution_df.columns):
+#        # replace with try = result[solution.columns]
+#        st.write("Some columns have missing")
+
     try:
         result = result[solution_df.columns]
         st.dataframe(result.compare(solution_df))
@@ -62,12 +79,17 @@ tab2, tab3 = st.tabs(["Tables", "Solutions"])
 
 
 with tab2:
-    st.write("table: beverages")
-    st.dataframe(beverages)
-    st.write("table: food_items")
-    st.write(food_items)
-    st.write("excepted")
-    st.write(solution_df)
+    exercise_tables = exercise.loc[0, "tables"]
+    for table in exercise_tables:
+        st.write(f"table: {table}")
+        df_table = con.execute(f"SELECT * FROM {table}").df()
+        st.dataframe(df_table)
+        #print(table)
+#    st.write("table: food_items")
+#    st.write(food_items)
+#    st.write("excepted")
+#    st.write(solution_df)
 
 with tab3:
-    st.write(ANSWER_STR)
+    st.write(answer) 
+
